@@ -5,6 +5,7 @@ Program
 This program analyzes error.log and sorts errors by mod directory.
 
 🔹 Features:
+
 ✅ Automatically sorts found errors into files and directories.
 ✅ Option to use a text editor to open error lines.
 ✅ Built-in function to check mod compatibility.
