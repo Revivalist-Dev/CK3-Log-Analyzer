@@ -13,23 +13,23 @@ from error_classifier import ErrorClassifier, ParsedError
 
 
 class CK3LogParser:
-    """CK3 Log Analyzer — анализ ошибок с привязкой к модам из Workshop"""
+    """CK3 Log Analyzer - analyzes errors linked to Workshop mods"""
 
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("CK3 Log Analyzer")
         self.root.geometry("1200x800")
         self._scanning = False
-        # Классификатор ошибок
+        # Error classifier
         self.classifier = ErrorClassifier()
-        # Хранилища
+        # Storages
         self.mod_errors = {}
         self.mod_cache = {}
         self.parsed_errors = []
 
-        # 🟢 язык интерфейса и словарь переводов (двуязычный RU/EN)
+        # 🟢 Interface language and translation dictionary (bilingual RU/EN)
         self.lang = tk.StringVar(value="ru")
-        # попробуем загрузить язык из конфига ДО построения UI
+        # try to load language from config BEFORE UI construction
         cfg_path = Path("config.json")
         if cfg_path.exists():
             try:
@@ -38,11 +38,11 @@ class CK3LogParser:
                     if cfg.get("lang") in ("ru", "en"):
                         self.lang.set(cfg["lang"])
             except Exception:
-                pass  # игнорируем ошибки
+                pass  # ignore errors
                 
         self.translations = {
             "ru": {
-                # GUI подписи
+                # GUI labels
                 "cfg": "Конфигурация",
                 "logs": "Папка логов",
                 "workshop": "Папка Workshop",
@@ -58,7 +58,7 @@ class CK3LogParser:
                 "editor": "Редактор",
                 "ready": "Готово",
 
-                # Правая панель
+                # Right panel
                 "info_actions": "Информация и действия",
                 "file": "Файл",
                 "line": "Строка",
@@ -69,7 +69,7 @@ class CK3LogParser:
                 "show_in_log": "🔍 Показать строку в error.log",
                 "open_in_mod": "📄 Открыть строку в файле мода",
 
-                # Универсальные сообщения
+                # Universal messages
                 "no_selection": "Нет выбора",
                 "select_error": "Выберите ошибку в дереве.",
                 "no_file": "Файл не найден",
@@ -269,7 +269,7 @@ class CK3LogParser:
             }
         }
 
-        # GUI элементы
+        # GUI elements
         self.tree = None
         self.details_text = None
         self.log_text = None
@@ -278,9 +278,9 @@ class CK3LogParser:
         self.workshop_entry = None
         
         self.status_var = tk.StringVar(value="Ready")
-        self.editor_choice = tk.StringVar(value="vscode")  # по умолчанию VS Code
+        self.editor_choice = tk.StringVar(value="vscode")  # VS Code by default
         
-        # Рисуем интерфейс
+        # Draw the interface
         self._setup_ui()
         self._load_config()
 
@@ -294,22 +294,22 @@ class CK3LogParser:
         langmenu = tk.Menu(menubar, tearoff=0)
 
         def change_language(lang_code):
-            """Меняет язык и сохраняет выбор в config.json"""
+            """Changes the language and saves the choice to config.json"""
             self.lang.set(lang_code)
-            # 💾 сразу сохраняем язык в конфиг
+            # 💾 save language to config immediately
             self._save_config()
-            # 🔄 перерисовываем интерфейс
+            # 🔄 redraw the interface
             self._redraw_ui()
 
         langmenu.add_radiobutton(label="Русский", variable=self.lang, value="ru", command=lambda: change_language("ru"))
         langmenu.add_radiobutton(label="English", variable=self.lang, value="en", command=lambda: change_language("en"))
         menubar.add_cascade(label="Language", menu=langmenu)
         self.root.config(menu=menubar)    
-        """Создание интерфейса в один экран с вкладками и правой панелью"""
+        """Creates a single-screen interface with tabs and a right panel"""
         main = ttk.Frame(self.root)
         main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # ─── верхние настройки ─────────────────────────────────────
+        # ─── Top settings ─────────────────────────────────────
         cfg = ttk.LabelFrame(main, text=t("cfg"), padding=8)
         cfg.pack(fill=tk.X, pady=(0, 6))
         ttk.Label(cfg, text=t("logs")).grid(row=0, column=0, sticky=tk.W)
@@ -328,7 +328,7 @@ class CK3LogParser:
         ttk.Radiobutton(editor_frame, text="Notepad++",
                         variable=self.editor_choice, value="notepadpp").pack(side=tk.LEFT, padx=5)
 
-        # ─── кнопки действий и статус ───────────────────────────────
+        # ─── Action buttons and status ───────────────────────────────
         act = ttk.Frame(main)
         act.pack(fill=tk.X, pady=5)
         self.scan_btn = ttk.Button(act, text="🔍 Scan", command=self.start_scan)
@@ -339,24 +339,24 @@ class CK3LogParser:
         self.progress = ttk.Progressbar(main, mode="indeterminate")
         self.progress.pack(fill=tk.X, pady=(0, 5))
 
-        # ─── основной горизонтальный разделитель: вкладки + панель ───
+        # ─── Main horizontal splitter: tabs + panel ───
         splitter = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
         splitter.pack(fill=tk.BOTH, expand=True)
 
-        # =========== левая часть → Notebook с тремя вкладками ===========
+        # =========== Left part → Notebook with three tabs ===========
         left = ttk.Frame(splitter)
         splitter.add(left, weight=5)
         notebook = ttk.Notebook(left)
         notebook.pack(fill=tk.BOTH, expand=True)
         self.notebook = notebook
 
-        # --- вкладка LOG ---
+        # --- LOG tab ---
         tab_log = ttk.Frame(notebook, padding=5)
         self.log_text = scrolledtext.ScrolledText(tab_log, wrap=tk.WORD)
         self.log_text.pack(fill=tk.BOTH, expand=True)
         notebook.add(tab_log, text="🧾  Log")
 
-        # --- вкладка ERRORS ---
+        # --- ERRORS tab ---
         tab_err = ttk.Frame(notebook, padding=5)
         tab_err.rowconfigure(0, weight=1)
         tab_err.columnconfigure(0, weight=1)
@@ -371,18 +371,18 @@ class CK3LogParser:
         yscroll = ttk.Scrollbar(tab_err, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=yscroll.set)
 
-        # 👇 Используем grid для правильного масштабирования
+        # 👇 Using grid for proper scaling
         self.tree.grid(row=0, column=0, sticky="nsew")
         yscroll.grid(row=0, column=1, sticky="ns")
 
         notebook.add(tab_err, text="📦  Errors by Mods")
 
-        # --- вкладка CONFLICTS ---
+        # --- CONFLICTS tab ---
         tab_conf = ttk.Frame(notebook, padding=5)
         tab_conf.rowconfigure(0, weight=1)
         tab_conf.columnconfigure(0, weight=1)
 
-        # Дерево конфликтов: теперь иерархическое (мод → файлы → другие моды)
+        # Conflict tree: now hierarchical (mod → files → other mods)
         self.conf_tree = ttk.Treeview(
             tab_conf,
             columns=("type", "count", "mods", "note"),
@@ -396,22 +396,22 @@ class CK3LogParser:
         ]:
             self.conf_tree.heading(c, text=txt)
             self.conf_tree.column(c, width=w, anchor="w")
-        # 👇 Обработка двойного клика на строке "Другие моды"
+        # 👇 Handle double-click on "Other Mods" row
         self.conf_tree.bind("<Double-1>", self._on_conflict_double_click)
         
         yscroll_conf = ttk.Scrollbar(tab_conf, orient="vertical", command=self.conf_tree.yview)
         self.conf_tree.configure(yscrollcommand=yscroll_conf.set)
 
-        # 👇 Используем grid для масштабирования
+        # 👇 Using grid for scaling
         self.conf_tree.grid(row=0, column=0, sticky="nsew")
         yscroll_conf.grid(row=0, column=1, sticky="ns")
 
         notebook.add(tab_conf, text="🧩  Conflicts")
 
-        # по умолчанию открыть лог
+        # open log by default
         notebook.select(tab_log)
 
-        # =========== правая часть → панель деталей файла ===========
+        # =========== Right part → file details panel ===========
         right = ttk.LabelFrame(splitter, text=t("info_actions"))
         splitter.add(right, weight=2)
 
@@ -436,31 +436,31 @@ class CK3LogParser:
         self._setup_copy_paste()
 
     def _redraw_ui(self):
-        """Полная перерисовка интерфейса при смене языка без потери данных."""
-        # ---- Сохраняем данные перед пересозданием ----
+        """Full UI redraw on language change without data loss."""
+        # ---- Save data before recreation ----
         saved_logs = self.logs_entry.get() if self.logs_entry else ""
         saved_ws = self.workshop_entry.get() if self.workshop_entry else ""
         saved_editor = self.editor_choice.get() if hasattr(self, "editor_choice") else "vscode"
         
-        # Уничтожаем старые элементы
+        # Destroy old elements
         for widget in self.root.winfo_children():
             widget.destroy()
 
-        # ---- Пересоздаём интерфейс заново ----
+        # ---- Recreate the interface ----
         self._setup_ui()
 
-        # ---- Восстанавливаем значения ----
+        # ---- Restore values ----
         self.logs_entry.delete(0, tk.END)
         self.logs_entry.insert(0, saved_logs)
         self.workshop_entry.delete(0, tk.END)
         self.workshop_entry.insert(0, saved_ws)
         self.editor_choice.set(saved_editor)
 
-        # ---- Обновляем статус и заголовок ----
+        # ---- Update status and title ----
         self.root.title("CK3 Log Analyzer")
         self.status_var.set(self.i18n("ready"))
 
-        # Обновляем иконку трея (чтобы переводы элементов меню тоже обновились)
+        # Update tray icon (to update menu item translations as well)
         if hasattr(self, "tray_icon"):
             try:
                 self.tray_icon.visible = False
@@ -489,7 +489,7 @@ class CK3LogParser:
             Thread(target=self.tray_icon.run, daemon=True).start()
 
     def _open_error_in_mod_file(self):
-        """Открывает строку ошибки непосредственно в нужном файле мода (с точным совпадением пути)."""
+        """Opens the error line directly in the correct mod file (with exact path match)."""
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo(self.i18n("no_selection"), self.i18n("select_error"))
@@ -502,13 +502,13 @@ class CK3LogParser:
             messagebox.showwarning(self.i18n("no_data"), self.i18n("warn_no_data"))
             return
 
-        # безопасная распаковка
+        # safe unpacking
         err_type = vals[0] if len(vals) > 0 else ""
         line_str = vals[1] if len(vals) > 1 else ""
         err_msg  = vals[2] if len(vals) > 2 else ""
         log_line = vals[3] if len(vals) > 3 else ""
         err_file = vals[4] if len(vals) > 4 else ""
-        mod_id   = vals[5] if len(vals) > 5 else ""  # 🟢 теперь учитываем шестой элемент
+        mod_id   = vals[5] if len(vals) > 5 else ""  # 🟢 now considering the sixth element
 
         line_num = int(line_str) if str(line_str).isdigit() else 1
         rel_path = (err_file or "").replace("\\", "/").lower().lstrip("./").strip("'")
@@ -524,7 +524,7 @@ class CK3LogParser:
                 self._log(self.i18n("line_opened_in").format(line=line_num, file=candidate))
                 return
 
-        # 🔍 fallback если прямого совпадения нет
+        # 🔍 fallback if no direct match
         filename = Path(rel_path).name
         for mod in self.mod_errors.values():
             base = Path(mod.get("path", ""))
@@ -539,7 +539,7 @@ class CK3LogParser:
         self._log(self.i18n("file_not_found_simple").format(file=rel_path))
 
     def _open_file_at_line(self, file_path, line_num=1):
-        """Открывает указанный файл на заданной строке в выбранном редакторе."""
+        """Opens the specified file at the given line in the selected editor."""
         import shutil, subprocess
 
         editor = self.editor_choice.get()
@@ -553,7 +553,7 @@ class CK3LogParser:
                     return
 
             elif editor == "notepadpp":
-                # 👇 Классический набор аргументов, который всегда работает
+                # 👇 Classic set of arguments that always works
                 possible_paths = [
                     shutil.which("notepad++"),
                     r"C:\Program Files\Notepad++\notepad++.exe",
@@ -561,8 +561,8 @@ class CK3LogParser:
                 ]
                 exe = next((p for p in possible_paths if p and Path(p).exists()), None)
                 if exe:
-                    # /multiInst — всегда создаёт новое окно,
-                    # -n<line> — переход к строке
+                    # /multiInst — always creates a new window,
+                    # -n<line> — jump to line
                     subprocess.Popen([
                         exe,
                         "-multiInst",
@@ -608,7 +608,7 @@ class CK3LogParser:
                     self.workshop_entry.insert(0, cfg["workshop_path"])
                 if cfg.get("editor") in ("vscode", "notepadpp"):
                     self.editor_choice.set(cfg["editor"])
-                if cfg.get("lang") in ("ru", "en"):  # 🟢 восстанавливаем язык
+                if cfg.get("lang") in ("ru", "en"):  # 🟢 restore language
                     self.lang.set(cfg["lang"])
                 self._log(self.i18n("config_loaded"))
         except Exception as e:
@@ -619,7 +619,7 @@ class CK3LogParser:
             "logs_path": self.logs_entry.get().strip(),
             "workshop_path": self.workshop_entry.get().strip(),
             "editor": self.editor_choice.get(),
-            "lang": self.lang.get(),     # 🟢 добавляем язык
+            "lang": self.lang.get(),     # 🟢 add language
         }
         try:
             with open("config.json", "w", encoding="utf-8") as f:
@@ -629,7 +629,7 @@ class CK3LogParser:
             self._log(self.i18n("config_save_error").format(err=e))
 
     def _setup_copy_paste(self):
-        """Общая система копирования (ПКМ и Ctrl+C)"""
+        """General copy system (RMB and Ctrl+C)"""
         menu = tk.Menu(self.root, tearoff=0)
         menu.add_command(label="Copy", command=self._copy_text)
 
@@ -649,12 +649,12 @@ class CK3LogParser:
             self.tree.bind("<Control-C>", lambda e: self._copy_selected_tree_item())            
 
     def _copy_selected_tree_item(self):
-        """Копирует выделенную строку из дерева"""
+        """Copies the selected line from the tree"""
         sel = self.tree.selection()
         if not sel:
             return
         item = sel[0]
-        # текст и значения
+        # text and values
         text = self.tree.item(item, "text")
         vals = self.tree.item(item, "values")
         out = text
@@ -666,21 +666,21 @@ class CK3LogParser:
 
     # ──────────────────────────────── LOG TOOLS ────────────────────────────────
     def _browse_logs(self):
-        """Диалог выбора папки логов"""
+        """Log folder selection dialog"""
         folder = filedialog.askdirectory(title=self.i18n("logs"))
         if folder:
             self.logs_entry.delete(0, tk.END)
             self.logs_entry.insert(0, folder)
-            # 💾 сохраняем конфигурацию, сразу после выбора
+            # 💾 save configuration immediately after selection
             self._save_config()
 
     def _browse_workshop(self):
-        """Диалог выбора папки Workshop"""
+        """Workshop folder selection dialog"""
         folder = filedialog.askdirectory(title=self.i18n("workshop"))
         if folder:
             self.workshop_entry.delete(0, tk.END)
             self.workshop_entry.insert(0, folder)
-            # 💾 сохраняем конфигурацию, сразу после выбора
+            # 💾 save configuration immediately after selection
             self._save_config()
 
     def _log(self, msg):
@@ -717,31 +717,31 @@ class CK3LogParser:
         threading.Thread(target=self._run_analysis, daemon=True).start()
 
     def _run_analysis(self):
-        """Главный процесс анализа error.log"""
+        """Main error.log analysis process"""
         try:
-            # 1️⃣ Поиск файла error.log
+            # 1️⃣ Find error.log file
             log_file = self._find_log_file()
             if not log_file:
                 self._log(self.i18n("log_not_found"))
                 return
 
-            # 2️⃣ Чтение содержимого
+            # 2️⃣ Read content
             self._log(self.i18n("log_read").format(file=log_file))
             data = self._read_log_file(log_file)
             if not data:
                 self._log(self.i18n("log_read_failed"))
                 return
 
-            # 3️⃣ Классификация строк
+            # 3️⃣ Classify lines
             self._log(self.i18n("classify_start"))
             parsed = self.classifier.classify_block(data)
             if not parsed:
                 self._log(self.i18n("classify_empty"))
                 return
 
-            # 💾 сохраняем весь список в атрибут
+            # 💾 save the entire list to an attribute
             self.parsed_errors = parsed
-            # создаём индекс для быстрого поиска ошибок по тексту
+            # create an index for quick error search by text
             self.error_index = {}
             for e in parsed:
                 if e.message:
@@ -749,20 +749,20 @@ class CK3LogParser:
 
             self._log(self.i18n("classify_found").format(count=len(parsed)))
 
-            # 3.1️⃣ Вывод статистики по категориям
+            # 3.1️⃣ Output category statistics
             cat_stat = {}
             for e in parsed:
                 cat_stat[e.category] = cat_stat.get(e.category, 0) + 1
             sorted_cats = ', '.join(f"{k}: {v}" for k, v in sorted(cat_stat.items()))
             self._log(self.i18n("classify_cats").format(stats=sorted_cats))
 
-            # 4️⃣ Сканирование Workshop
+            # 4️⃣ Scan Workshop
             ws_path = Path(self.workshop_entry.get())
             if not ws_path.exists():
                 self._log(self.i18n("workshop_not_found"))
                 return
 
-            # 5️⃣ Построение структуры модов и файлов
+            # 5️⃣ Build mod and file structure
             self._log(self.i18n("build_struct_start"))
             self.mod_errors = self._build_mod_structure(parsed, ws_path)
 
@@ -774,7 +774,7 @@ class CK3LogParser:
             )
             self._log(self.i18n("mods_found").format(count=total_mods, errors=total_errs))
 
-            # 6️⃣ Отображение в GUI
+            # 6️⃣ Display in GUI
             self._display_mod_tree(self.mod_errors)
             self._log(self.i18n("analysis_done_log"))
 
@@ -815,15 +815,15 @@ class CK3LogParser:
 
     def _build_mod_structure(self, parsed_errors, ws_path: Path):
         """
-        Распределяет ошибки по структуре модов.
-        Делает точное сопоставление путей (common/...),
-        добавляет реальную проверку кодировки для ENCODING_ERROR.
+        Distributes errors by mod structure.
+        Performs exact path matching (common/...),
+        adds real encoding check for ENCODING_ERROR.
         """
 
         import fnmatch
 
         def _check_bom_encoding(file_path: Path):
-            """Проверяет наличие BOM и корректность UTF-8 кодировки"""
+            """Checks for BOM and correct UTF-8 encoding"""
             try:
                 with open(file_path, "rb") as f:
                     data = f.read()
@@ -842,14 +842,14 @@ class CK3LogParser:
         total_mods = len(mod_dirs)
         self._log(self.i18n("workshop_index").format(total=total_mods))
 
-        # ─── Индексация Workshop ──────────────────────────────────────
+        # ─── Indexing Workshop ──────────────────────────────────────
         self.progress.start()
         for i, mod_dir in enumerate(mod_dirs, 1):
             try:
                 info = self.get_mod_info(mod_dir)
-                # добавляем id внутрь словаря, чтобы он не терялся потом
+                # add id key inside the dictionary so it's not lost later
                 mods[info["id"]] = {
-                    "id": info["id"],        # 🟢 добавлен ключ id
+                    "id": info["id"],        # 🟢 id key added
                     "name": info["name"],
                     "path": str(mod_dir),
                     "errors": {}
@@ -878,7 +878,7 @@ class CK3LogParser:
         self._log(self.i18n("index_done").format(count=len(file_index)))
         self._log(self.i18n("process_errors").format(count=len(parsed_errors)))
 
-        # ─── Распределение ошибок ────────────────────────────────────
+        # ─── Distributing errors ────────────────────────────────────
         self.progress.start()
         for i, err in enumerate(parsed_errors, 1):
             if not self._scanning:
@@ -887,7 +887,7 @@ class CK3LogParser:
             if not err.file:
                 continue
 
-            # 🩹 добавляем .txt только для Unrecognized loc key
+            # 🩹 add .txt only for Unrecognized loc key
             if (err.type in {"UNRECOGNIZED_LOC_KEY_SIMPLE", "UNRECOGNIZED_LOC_KEY_NEAR"}
                     and '/' not in err.file
                     and not err.file.lower().endswith(('.txt', '.yml', '.gui', '.dds', '.csv'))):
@@ -909,7 +909,7 @@ class CK3LogParser:
             found_in_mod = None
             found_path: Path | None = None
 
-            # ── 1. Точное совпадение полного пути ─────────────────────
+            # ── 1. Exact full path match ─────────────────────
             for rel_variant in possible_rel_keys:
                 rel_variant = rel_variant.strip("./").replace("\\", "/").lower()
                 for mod_id, mod_info in mods.items():
@@ -925,7 +925,7 @@ class CK3LogParser:
                 if found_in_mod:
                     break
 
-            # ── 2. Совпадение по индексу файлов ───────────────────────
+            # ── 2. File index match ───────────────────────
             if not found_in_mod:
                 for mod_id, rel_index in file_index.items():
                     if rel_key in rel_index:
@@ -934,7 +934,7 @@ class CK3LogParser:
                         self._log(self.i18n("match_indexed").format(file=rel_key, mod=mods[mod_id]["name"]))
                         break
 
-            # ── 3. Поиск среди всех модов одинаковых файлов и проверка BOM ───────
+            # ── 3. Search among all mods for same-named files and check BOM ───────
             if err.type == "ENCODING_ERROR":
                 directory, filename = os.path.split(rel_key)
                 same_named = []
@@ -946,8 +946,8 @@ class CK3LogParser:
                 if not same_named:
                     continue
 
-                # Проверяем каждый найденный файл
-                self._log(f"🔍 Найдено {len(same_named)} файлов '{filename}' в разных модах:")
+                # Check each found file
+                self._log(f"🔍 Found {len(same_named)} files '{filename}' in different mods:")
                 bad_files = []
                 for mid, path_ in same_named:
                     ok, enc, has_bom = _check_bom_encoding(path_)
@@ -960,11 +960,11 @@ class CK3LogParser:
                         bad_files.append((mid, path_, enc, has_bom))
 
                 if not bad_files:
-                    # если все норм — просто пропускаем ошибку
+                    # if all is good — just skip the error
                     self._log(self.i18n("bom_all_ok").format(file=filename))
                     continue
 
-                # Для каждого bad‑файла добавляем ошибку в соответствующий мод
+                # For each bad file, add the error to the corresponding mod
                 for mid, path_, enc, has_bom in bad_files:
                     mark = "✅" if has_bom else "❌"
                     self._log(
@@ -975,9 +975,9 @@ class CK3LogParser:
                     rel_path = str(path_.relative_to(mod_info["path"])).replace("\\", "/")
                     self._insert_mod_error(mod_info["errors"], rel_path, err)
 
-                continue  # важное — чтобы не проходить прочие поиски ниже
+                continue  # important - not to pass other searches below
 
-            # ── 4. Последний запасной поиск по имени ───────────────
+            # ── 4. Last fallback search by name ───────────────
             if not found_in_mod:
                 directory, pattern = os.path.split(rel_key)
                 for mod_id, rel_index in file_index.items():
@@ -988,10 +988,10 @@ class CK3LogParser:
                 if found_in_mod:
                     self._log(self.i18n("match_loose").format(file=pattern, mod=mods[found_in_mod]["name"]))
 
-            # ── Добавляем ошибку ───────────────────────────────────────
+            # ── Add error ───────────────────────────────────────
             if found_in_mod and found_path:
                 try:
-                    # 🔍 Проверяем кодировку для ENCODING_ERROR
+                    # 🔍 Check encoding for ENCODING_ERROR
                     if err.type == "ENCODING_ERROR":
                         ok, enc, has_bom = _check_bom_encoding(found_path)
                         mark = "✅" if ok else "❌"
@@ -1007,7 +1007,7 @@ class CK3LogParser:
                 except Exception:
                     pass
 
-            # если не нашли — кладем в Unknown
+            # if not found - put in Unknown
             mods.setdefault("Unknown", {"name": "Unknown Origin", "errors": {}})
             self._insert_mod_error(mods["Unknown"]["errors"], rel_key, err)
 
@@ -1024,10 +1024,10 @@ class CK3LogParser:
 
     def _check_mod_conflicts(self):
         """
-        Проверка Workshop на конфликты и зависимости.
-        Отображает древовидно: мод → файлы → другие моды.
+        Checks Workshop for conflicts and dependencies.
+        Displays hierarchically: mod → files → other mods.
         """
-        t = self.i18n  # 🔧 добавлено: локальная ссылка на переводчик
+        t = self.i18n  # 🔧 added: local link to translator
         self.notebook.select(2)
         self.conf_tree.configure(show="tree headings")  # включаем древовидное представление
         self.conf_tree.delete(*self.conf_tree.get_children())
@@ -1043,7 +1043,7 @@ class CK3LogParser:
         mods = [d for d in ws_path.iterdir() if d.is_dir()]
         mod_info: dict[str, dict] = {}
 
-        # ─── собираем информацию по каждому моду ───
+        # ─── Collect information for each mod ───
         for mod_dir in mods:
             mid = mod_dir.name
             desc = mod_dir / "descriptor.mod"
@@ -1080,7 +1080,7 @@ class CK3LogParser:
                 "files": set(),
             }
 
-            # Индекс файлов
+            # File index
             for root, _, files in os.walk(mod_dir):
                 for f in files:
                     if not f.lower().endswith((".txt", ".yml", ".gui", ".csv")):
@@ -1089,13 +1089,13 @@ class CK3LogParser:
                     duplicates.setdefault(rel, []).append(mid)
                     mod_info[mid]["files"].add(rel)
 
-        # ─── создаём дерево: мод → конфликтующие файлы ───
+        # ─── Create tree: mod → conflicting files ───
         for mid, info in sorted(mod_info.items(), key=lambda x: x[1]["name"].lower()):
             mod_node = self.conf_tree.insert(
                 "",
                 "end",
                 text=f"{info['name']} (ID: {mid})",
-                values=("", "", "", ""),  # пустые колонки, только дерево
+                values=("", "", "", ""),  # empty columns, tree only
                 open=False,
             )
 
@@ -1116,7 +1116,7 @@ class CK3LogParser:
             # конфликты по файлам
             for file_rel in sorted(info["files"]):
                 mod_list = duplicates.get(file_rel, [])
-                # если файл в конфликте (используется >=2 модами)
+                # if file is in conflict (used by >=2 mods)
                 if len(mod_list) > 1:
                     others = [mod_info[m]["name"] for m in mod_list if m != mid]
                     self.conf_tree.insert(
@@ -1129,7 +1129,7 @@ class CK3LogParser:
         self._log(self.i18n("check_conflicts_done"))
 
     def _insert_mod_error(self, tree, rel_path, err: ParsedError):
-        """Добавляет ошибку в иерархическую структуру мод/папка/файл"""
+        """Adds an error to the hierarchical mod/folder/file structure"""
         parts = rel_path.split("/")
         node = tree
         for p in parts[:-1]:
@@ -1137,7 +1137,7 @@ class CK3LogParser:
         node.setdefault(parts[-1], []).append(err)
 
     def get_mod_info(self, mod_dir: Path):
-        """Читает название мода даже при нестандартных .mod файлах"""
+        """Reads mod name even with non-standard .mod files"""
         mod_id = mod_dir.name
         if mod_id in self.mod_cache:
             return self.mod_cache[mod_id]
@@ -1145,19 +1145,19 @@ class CK3LogParser:
         mod_name = f"Mod_{mod_id}"
         mod_path = str(mod_dir)
 
-        # приоритет — descriptor.mod и стандартные комбинации
+        # priority - descriptor.mod and standard combinations
         candidates = [
             mod_dir / "descriptor.mod",
             mod_dir / f"{mod_id}.mod"
         ]
 
-        # если не нашли — добавить все *.mod из корня
+        # if not found - add all *.mod from root
         mod_files = list(mod_dir.glob("*.mod"))
         for f in mod_files:
             if f not in candidates:
                 candidates.append(f)
 
-        # пройти все возможные файлы и искать name=
+        # go through all possible files and look for name=
         for desc in candidates:
             if not desc.exists():
                 continue
@@ -1171,9 +1171,9 @@ class CK3LogParser:
                                 mod_name = raw
                                 break
             except Exception as e:
-                self._log(f"⚠️ Ошибка чтения {desc}: {e}")
+                self._log(f"⚠️ Error reading {desc}: {e}")
             if mod_name != f"Mod_{mod_id}":
-                break  # нашли корректное имя — выходим
+                break  # found correct name - exit
 
         info = {"id": mod_id, "name": mod_name, "path": mod_path}
         self.mod_cache[mod_id] = info
@@ -1188,7 +1188,7 @@ class CK3LogParser:
                 "end",
                 text=f"{mod['name']} (ID: {mod_id})",
                 open=False,
-                values=("", "", "", "", "", mod_id)  # 🟢 добавляем id мода как 6‑й элемент
+                values=("", "", "", "", "", mod_id)  # 🟢 add mod id as 6th element
             )
             self._add_tree_nodes(mod_node, mod["errors"], mod_id=mod_id)
 
@@ -1199,7 +1199,7 @@ class CK3LogParser:
                 node = self.tree.insert(
                     parent, "end",
                     text=name,
-                    values=("", "", "", "", new_prefix, mod_id)  # 🟢 сохраняем и путь, и мод
+                    values=("", "", "", "", new_prefix, mod_id)  # 🟢 save both path and mod
                 )
                 self._add_tree_nodes(node, content, new_prefix, mod_id)
             else:
@@ -1224,13 +1224,13 @@ class CK3LogParser:
                             err.message or "",
                             err.log_line or "",
                             err.file or new_prefix,
-                            mod_id,  # 🟢 прокидываем id мода в ошибки тоже
+                            mod_id,  # 🟢 pass mod id to errors too
                         )
                     )
 
-    # ──────────────────────────────── Новые действия ────────────────────────────────
+    # ──────────────────────────────── New Actions ────────────────────────────────
     def _open_selected_folder(self):
-        """Открывает именно ту папку, что принадлежит корректному моду."""
+        """Opens the exact folder belonging to the correct mod."""
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo(self.i18n("no_selection"), self.i18n("select_error"))
@@ -1242,7 +1242,7 @@ class CK3LogParser:
         mod_id = (vals[5] or "") if len(vals) >= 6 else ""
         rel_path = rel_path.replace("\\", "/").lstrip("./").strip("'")
 
-        # Если выбран корневой мод
+        # If root mod is selected
         if not rel_path and mod_id:
             mod = self.mod_errors.get(mod_id)
             if mod and mod.get("path"):
@@ -1252,7 +1252,7 @@ class CK3LogParser:
             messagebox.showinfo(self.i18n("not_found"), self.i18n("no_mod").format(file=mod_id))
             return
 
-        # Если это подпапка
+        # If it's a subfolder
         target_mod = self.mod_errors.get(mod_id)
         if not target_mod:
             messagebox.showinfo(self.i18n("not_found"), self.i18n("no_mod").format(file=rel_path))
@@ -1269,7 +1269,7 @@ class CK3LogParser:
             self._log(self.i18n("folder_not_found").format(path=rel_path, mod=mod_path))
 
     def _open_selected_file(self):
-        """Открывает файл, принадлежащий конкретному моду."""
+        """Opens a file belonging to a specific mod."""
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo(self.i18n("no_selection"), self.i18n("select_error"))
@@ -1302,7 +1302,7 @@ class CK3LogParser:
             self._log(self.i18n("file_not_found").format(file=rel_path, mod=mod_id))
 
     def _show_errorline_in_log(self):
-        """Открывает error.log и позиционирует на строке, где расположено сообщение об ошибке."""
+        """Opens error.log and positions to the line where the error message is located."""
         log_file = self._find_log_file()
         if not log_file or not log_file.exists():
             messagebox.showinfo(self.i18n("no_error_log"), self.i18n("no_error_log"))
@@ -1316,7 +1316,7 @@ class CK3LogParser:
         item = sel[0]
         parent = self.tree.parent(item)
 
-        # 🚫 если выбран не элемент с ошибкой
+        # 🚫 if not an error element is selected
         if not parent:
             messagebox.showinfo(self.i18n("no_error"), self.i18n("choose_node"))
             return
@@ -1326,7 +1326,7 @@ class CK3LogParser:
             messagebox.showinfo(self.i18n("no_data"), self.i18n("warn_no_data"))
             return
 
-        # log_line хранится в 4‑м элементе values
+        # log_line is stored in 4th element of values
         log_line = values[3]
         if not log_line or not str(log_line).isdigit():
             messagebox.showinfo(self.i18n("no_link"), self.i18n("select_errorline"))
@@ -1334,10 +1334,10 @@ class CK3LogParser:
 
         line_num = int(log_line)
         self._open_file_at_line(log_file, line_num)
-        self._log(f"🪶 Переход к строке {line_num} в error.log ({log_file})")
+        self._log(f"🪶 Go to line {line_num} in error.log ({log_file})")
 
     def _open_error_log(self):
-        """Открывает error.log в выбранном редакторе."""
+        """Opens error.log in the selected editor."""
         log_file = self._find_log_file()
         if not log_file or not log_file.exists():
             messagebox.showinfo(self.i18n("no_error_log"), self.i18n("no_error_log"))
@@ -1360,7 +1360,7 @@ class CK3LogParser:
         os.startfile(log_file)
         self._log(self.i18n("editor_not_found").format(file=log_file))
 
-    # ──────────────────────────────── Обновлённый выбор ────────────────────────────────
+    # ──────────────────────────────── Updated Selection ────────────────────────────────
     def _on_tree_select(self, event):
         sel = self.tree.selection()
         if not sel:
@@ -1370,7 +1370,7 @@ class CK3LogParser:
         if not vals:
             return
 
-        # безопасно извлекаем первые три
+        # safely extract the first three
         err_type = vals[0] if len(vals) > 0 else ""
         err_line = vals[1] if len(vals) > 1 else ""
         err_msg  = vals[2] if len(vals) > 2 else ""
@@ -1407,7 +1407,7 @@ class CK3LogParser:
             messagebox.showerror(self.i18n("analysis_error"), self.i18n("export_failed").format(err=e))
 
     def _flatten_errors(self, errors_tree):
-        """Разворачивает дерево для JSON экспорта"""
+        """Flattens the tree for JSON export"""
         flat = {}
 
         def walk(prefix, node):
@@ -1424,12 +1424,12 @@ class CK3LogParser:
     def toggle_scope(self):
         self.show_scope = not self.show_scope
 
-    # ────────────────────────────── POPUP ДЛЯ "ДРУГИЕ МОДЫ" ──────────────────────────────
+    # ────────────────────────────── POPUP FOR "OTHER MODS" ──────────────────────────────
     def _on_conflict_double_click(self, event):
-        """Реакция на двойной клик по элементу в дереве конфликтов."""
+        """Handles double-click on an item in the conflict tree."""
         item = self.conf_tree.identify_row(event.y)
         column = self.conf_tree.identify_column(event.x)
-        if not item or column != "#3":  # "#3" — третий столбец ("mods")
+        if not item or column != "#3":  # "#3" - third column ("mods")
             return
 
         values = self.conf_tree.item(item, "values")
@@ -1447,7 +1447,7 @@ class CK3LogParser:
         self._show_mods_popup(mods_list, x=event.x_root, y=event.y_root)
 
     def _show_mods_popup(self, mods_list, x=0, y=0):
-        """Создаёт всплывающее окно с прокручиваемым списком 'Другие моды'."""
+        """Creates a popup window with a scrollable list of 'Other Mods'."""
         popup = tk.Toplevel(self.root)
         popup.title(self.i18n("col_mods"))
         popup.geometry(f"250x200+{x}+{y}")
@@ -1474,11 +1474,11 @@ import os, sys, threading
 import pystray
 from PIL import Image
 
-# ────────────────────────────── функция для создания иконки в трее ──────────────────────────────
+# ────────────────────────────── function to create tray icon ──────────────────────────────
 def create_tray_icon(app):
-    """Создаёт иконку в системном трее (минимизирует в трей, восстанавливает окно)."""
+    """Creates a system tray icon (minimizes to tray, restores window)."""
 
-    # находим путь к icon.ico (работает и при .py, и при .exe)
+    # find path to icon.ico (works for both .py and .exe)
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS   # временная папка PyInstaller
     else:
@@ -1486,19 +1486,19 @@ def create_tray_icon(app):
 
     icon_path = os.path.join(base_path, "icon.ico")
 
-    # если иконки нет — делаем заглушку
+    # if no icon - create a placeholder
     try:
         image = Image.open(icon_path)
     except Exception:
         image = Image.new("RGB", (64, 64), "gray")
 
-    # действия из меню трея
+    # tray menu actions
     def on_open(icon, item):
         app.root.deiconify()
         app.root.after(0, app.root.lift)
 
     def on_quit(icon, item):
-        # полное завершение
+        # full termination
         icon.stop()
         app.root.after(0, app.root.destroy)
 
@@ -1511,7 +1511,7 @@ def create_tray_icon(app):
     threading.Thread(target=tray_icon.run, daemon=True).start()
     print(app.i18n("tray_created"))
 
-# ────────────────────────────── основной запуск Tkinter ──────────────────────────────
+# ────────────────────────────── main Tkinter launch ──────────────────────────────
 if __name__ == "__main__":
     import sys, os, threading, pystray
     from PIL import Image
@@ -1526,17 +1526,17 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = CK3LogParser(root)
 
-    # установить иконку окна
+    # set window icon
     if os.path.exists(icon_file):
         try:
             root.iconbitmap(icon_file)
         except Exception as e:
             print(app.i18n("icon_load_error").format(err=e))
 
-    # создать иконку в системном трее
+    # create system tray icon
     create_tray_icon(app)
 
-    # корректное завершение
+    # graceful shutdown
     def on_exit():
         if hasattr(app, "tray_icon"):
             try:
